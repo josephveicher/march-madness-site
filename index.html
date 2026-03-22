@@ -19,9 +19,7 @@
         padding: 24px;
       }
       .topbar {
-        display: grid;
-        grid-template-columns: 1.4fr 1fr;
-        gap: 20px;
+        display: block;
         margin-bottom: 20px;
       }
       .eyebrow {
@@ -60,42 +58,11 @@
         border-radius: 10px;
         padding: 10px;
       }
-      .button-row {
-        display: flex;
-        gap: 10px;
-        margin-top: 12px;
-        flex-wrap: wrap;
-      }
-      .action-button {
-        border: 1px solid #1d4ed8;
-        background: #2563eb;
-        color: #eff6ff;
-        border-radius: 10px;
-        padding: 10px 14px;
-        font-weight: bold;
-        cursor: pointer;
-      }
-      .action-button.secondary {
-        background: #0f172a;
-        border-color: #334155;
-        color: #e2e8f0;
-      }
-      .action-button:disabled {
-        opacity: 0.65;
-        cursor: wait;
-      }
-      .file-meta, .error, .status-box {
+      .file-meta, .error {
         margin-top: 12px;
         font-size: 14px;
       }
       .file-meta { color: #bdbdbd; }
-      .status-box {
-        color: #dbeafe;
-        background: #0c4a6e;
-        border: 1px solid #075985;
-        padding: 10px 12px;
-        border-radius: 10px;
-      }
       .error {
         color: #fecaca;
         background: #450a0a;
@@ -130,6 +97,9 @@
         display: grid;
         grid-template-columns: 1.35fr 0.9fr;
         gap: 20px;
+      }
+      .bottom-panel {
+        margin-top: 20px;
       }
       .section-title {
         font-size: 28px;
@@ -214,11 +184,26 @@
       }
       .note-box div + div { margin-top: 10px; }
       @media (max-width: 980px) {
-        .topbar, .content { grid-template-columns: 1fr; }
+        .content { grid-template-columns: 1fr; }
         .stats { grid-template-columns: repeat(2, 1fr); }
         h1 { font-size: 36px; }
       }
       @media (max-width: 640px) {
+        .page { padding: 14px; }
+        .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .content { gap: 14px; }
+        h1 { font-size: 28px; }
+        .panel { padding: 14px; border-radius: 16px; }
+        .stat-card { padding: 12px; border-radius: 14px; }
+        .stat-value { font-size: 24px; }
+        .section-title { font-size: 22px; }
+        .section-subtitle { margin-bottom: 12px; font-size: 14px; }
+        th, td { padding: 10px 8px; font-size: 13px; }
+        .button-row { flex-direction: column; }
+        .action-button { width: 100%; }
+        .bar-row { margin-bottom: 12px; }
+        .bar-head { font-size: 13px; }
+      }
         .page { padding: 16px; }
         .stats { grid-template-columns: 1fr; }
         h1 { font-size: 30px; }
@@ -232,19 +217,8 @@
           <div class="eyebrow">March Madness Tracker</div>
           <h1 id="page-title">Total Points</h1>
           <div class="subtext">
-            Keep Excel as the scoring engine. Update winners in your workbook, save it, then upload the latest file here. This page reads the computed values from the <strong>Points</strong> sheet.
+            Follow the latest standings from the <strong>Points</strong> sheet, optimized for quick mobile check-ins.
           </div>
-        </div>
-        <div class="panel">
-          <label class="upload-label" for="file-input">Upload updated workbook</label>
-          <input id="file-input" type="file" accept=".xlsx,.xlsm,.xls" />
-          <div class="button-row">
-            <button id="publish-button" class="action-button" type="button">Publish for everyone</button>
-            <button id="load-latest-button" class="action-button secondary" type="button">Load published data</button>
-          </div>
-          <div class="file-meta" id="file-meta">Current source: Using demo data</div>
-          <div class="status-box" id="status-box" style="display:none"></div>
-          <div class="error" id="error-box" style="display:none"></div>
         </div>
       </div>
 
@@ -281,11 +255,27 @@
           <p class="section-subtitle">Live view from uploaded workbook.</p>
           <div id="bars"></div>
           <div class="note-box">
-            <div><strong>Workflow:</strong> update winners in Excel, save the file, then upload the latest workbook here.</div>
-            <div><strong>Important:</strong> this reads saved formula results from Excel, so save after recalculation.</div>
-            <div><strong>Publish:</strong> click Publish after upload so everyone on the shared site sees the same version.</div>
+            <div><strong>Tip:</strong> on phones, the leaderboard is first so people can open the link and see standings immediately.</div>
           </div>
         </div>
+      </div>
+
+      <div class="panel bottom-panel">
+        <label class="upload-label" for="file-input">Upload updated workbook</label>
+        <input id="file-input" type="file" accept=".xlsx,.xlsm,.xls" />
+        <div class="button-row">
+          <button id="publish-button" class="action-button" type="button">Publish for everyone</button>
+          <button id="load-latest-button" class="action-button secondary" type="button">Load published data</button>
+        </div>
+        <div class="file-meta" id="file-meta">Current source: Using demo data</div>
+        <div class="status-box" id="status-box" style="display:none"></div>
+        <div class="error" id="error-box" style="display:none"></div>
+        <div class="note-box">
+          <div><strong>Workflow:</strong> update winners in Excel, save the file, then upload the latest workbook here.</div>
+          <div><strong>Important:</strong> this reads saved formula results from Excel, so save after recalculation.</div>
+          <div><strong>Publish:</strong> click Publish after upload so everyone on the shared site sees the same version.</div>
+        </div>
+      </div>
       </div>
     </div>
 
@@ -315,8 +305,6 @@
         ]
       };
 
-      let currentData = demoData;
-
       function normalizeName(value) {
         return String(value ?? "").replace(/\s+/g, " ").trim();
       }
@@ -324,18 +312,6 @@
       function asNumber(value) {
         const num = Number(value);
         return Number.isFinite(num) ? num : 0;
-      }
-
-      function setStatus(message) {
-        const box = document.getElementById("status-box");
-        box.textContent = message;
-        box.style.display = message ? "block" : "none";
-      }
-
-      function setError(message) {
-        const box = document.getElementById("error-box");
-        box.textContent = message;
-        box.style.display = message ? "block" : "none";
       }
 
       function parsePointsSheet(workbook) {
@@ -387,18 +363,18 @@
           totalPossiblePoints: totalPossibleMatch ? Number(totalPossibleMatch[1]) : 0,
           gamesEntered: asNumber(gamesEnteredRaw),
           players,
-          rounds,
-          updatedAt: new Date().toISOString()
+          rounds
         };
       }
 
       function render(data) {
-        currentData = data;
         document.getElementById("page-title").textContent = data.title || "Total Points";
         document.getElementById("total-possible").textContent = data.totalPossiblePoints;
         document.getElementById("games-entered").textContent = data.gamesEntered;
 
+        // Sort players high -> low
         const playersSorted = [...data.players].sort((a, b) => b.points - a.points);
+
         document.getElementById("player-count").textContent = playersSorted.length;
 
         const maxPoints = Math.max.apply(null, playersSorted.map((p) => p.points));
@@ -414,16 +390,14 @@
         thead += "</tr></thead>";
 
         let tbody = "<tbody>";
-        playersSorted.forEach((player) => {
+        playersSorted.forEach((player, playerIndex) => {
           let pointsClass = "middle";
           if (player.points === maxPoints) pointsClass = "leader";
           else if (player.points === minPoints) pointsClass = "lowest";
 
-          const originalIndex = data.players.findIndex((p) => p.name === player.name);
-
-          tbody += `<tr><td>${player.name}</td><td class="points-cell ${pointsClass}">${player.points}</td>`;
+          tbody += `<tr><td>${player.name}</td><td class=\"points-cell ${pointsClass}\">${player.points}</td>`;
           data.rounds.forEach((round) => {
-            const value = round.values[originalIndex] ?? 0;
+            const value = round.values[playerIndex] ?? 0;
             tbody += `<td>${value}</td>`;
           });
           tbody += "</tr>";
@@ -445,83 +419,29 @@
         });
       }
 
-      async function publishCurrentData() {
-        setError("");
-        setStatus("");
-        const button = document.getElementById("publish-button");
-        button.disabled = true;
-
-        try {
-          const response = await fetch("/.netlify/functions/publish-scores", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: currentData })
-          });
-
-          const result = await response.json();
-          if (!response.ok) {
-            throw new Error(result.error || "Publish failed.");
-          }
-
-          setStatus(`Published successfully. Shared viewers will now see this version. Updated: ${result.updatedAt}`);
-        } catch (err) {
-          setError(err && err.message ? err.message : "Could not publish scores.");
-        } finally {
-          button.disabled = false;
-        }
-      }
-
-      async function loadPublishedData() {
-        setError("");
-        setStatus("");
-        const button = document.getElementById("load-latest-button");
-        button.disabled = true;
-
-        try {
-          const response = await fetch("/.netlify/functions/publish-scores", { method: "GET" });
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || "Could not load published data.");
-          }
-          if (!result.data) {
-            throw new Error("No published data found yet.");
-          }
-
-          render(result.data);
-          localStorage.setItem("mm_data", JSON.stringify(result.data));
-          document.getElementById("file-meta").textContent = "Current source: published data";
-          setStatus(`Loaded published data. Updated: ${result.updatedAt || "unknown"}`);
-        } catch (err) {
-          setError(err && err.message ? err.message : "Could not load published scores.");
-        } finally {
-          button.disabled = false;
-        }
-      }
-
       document.getElementById("file-input").addEventListener("change", async function (event) {
         const file = event.target.files && event.target.files[0];
         if (!file) return;
 
-        setError("");
-        setStatus("");
+        const errorBox = document.getElementById("error-box");
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
 
         try {
           const buffer = await file.arrayBuffer();
           const workbook = XLSX.read(buffer, { type: "array", cellFormula: false });
           const parsed = parsePointsSheet(workbook);
           render(parsed);
+          // Save to localStorage
           localStorage.setItem("mm_data", JSON.stringify(parsed));
           document.getElementById("file-meta").textContent = `Current source: ${file.name}`;
-          setStatus("Workbook loaded locally. Click Publish for everyone to see this update.");
         } catch (err) {
-          setError(err && err.message ? err.message : "Could not read workbook.");
+          errorBox.textContent = err && err.message ? err.message : "Could not read workbook.";
+          errorBox.style.display = "block";
         }
       });
 
-      document.getElementById("publish-button").addEventListener("click", publishCurrentData);
-      document.getElementById("load-latest-button").addEventListener("click", loadPublishedData);
-
+      // Load from localStorage if available
       async function initializePage() {
         try {
           const response = await fetch("/.netlify/functions/publish-scores", { method: "GET" });
@@ -551,6 +471,9 @@
       }
 
       initializePage();
+      } else {
+        render(demoData);
+      }
     </script>
   </body>
 </html>
