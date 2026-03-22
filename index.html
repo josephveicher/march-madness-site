@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>March Madness Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #0a0a0a;
+        color: #f5f5f5;
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .topbar {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      .eyebrow {
+        color: #a3a3a3;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 44px;
+        line-height: 1;
+      }
+      .subtext {
+        color: #bdbdbd;
+        line-height: 1.5;
+        max-width: 700px;
+      }
+      .panel {
+        background: #171717;
+        border: 1px solid #2a2a2a;
+        border-radius: 20px;
+        padding: 18px;
+      }
+      .upload-label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      input[type="file"] {
+        width: 100%;
+        background: #0f0f0f;
+        border: 1px solid #404040;
+        color: #f5f5f5;
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .button-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .action-button {
+        border: 1px solid #1d4ed8;
+        background: #2563eb;
+        color: #eff6ff;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .action-button.secondary {
+        background: #0f172a;
+        border-color: #334155;
+        color: #e2e8f0;
+      }
+      .action-button:disabled {
+        opacity: 0.65;
+        cursor: wait;
+      }
+      .file-meta, .error, .status-box {
+        margin-top: 12px;
+        font-size: 14px;
+      }
+      .file-meta { color: #bdbdbd; }
+      .status-box {
+        color: #dbeafe;
+        background: #0c4a6e;
+        border: 1px solid #075985;
+        padding: 10px 12px;
+        border-radius: 10px;
+      }
+      .error {
+        color: #fecaca;
+        background: #450a0a;
+        border: 1px solid #7f1d1d;
+        padding: 10px 12px;
+        border-radius: 10px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: #171717;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 16px;
+      }
+      .stat-label {
+        color: #a3a3a3;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .stat-value {
+        font-size: 30px;
+        font-weight: bold;
+        margin-top: 8px;
+      }
+      .content {
+        display: grid;
+        grid-template-columns: 1.35fr 0.9fr;
+        gap: 20px;
+      }
+      .section-title {
+        font-size: 28px;
+        margin: 0 0 6px;
+      }
+      .section-subtitle {
+        color: #a3a3a3;
+        margin: 0 0 18px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 8px;
+      }
+      th {
+        color: #a3a3a3;
+        font-size: 13px;
+        font-weight: normal;
+        text-align: right;
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+      th:first-child, td:first-child { text-align: left; }
+      td {
+        background: #0f0f0f;
+        padding: 12px 10px;
+        text-align: right;
+      }
+      tr td:first-child {
+        border-radius: 12px 0 0 12px;
+        font-weight: bold;
+      }
+      tr td:last-child {
+        border-radius: 0 12px 12px 0;
+      }
+      .points-cell.leader {
+        background: rgba(16, 185, 129, 0.18);
+        color: #86efac;
+        font-weight: bold;
+      }
+      .points-cell.lowest {
+        background: rgba(244, 63, 94, 0.18);
+        color: #fda4af;
+        font-weight: bold;
+      }
+      .points-cell.middle {
+        background: rgba(245, 158, 11, 0.12);
+        color: #fde68a;
+        font-weight: bold;
+      }
+      .bar-row { margin-bottom: 16px; }
+      .bar-head {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        color: #e5e5e5;
+        font-size: 14px;
+      }
+      .bar-track {
+        width: 100%;
+        height: 12px;
+        border-radius: 999px;
+        background: #2a2a2a;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #60a5fa, #22d3ee);
+      }
+      .note-box {
+        margin-top: 24px;
+        color: #d4d4d4;
+        background: #0f0f0f;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 16px;
+        line-height: 1.5;
+      }
+      .note-box div + div { margin-top: 10px; }
+      @media (max-width: 980px) {
+        .topbar, .content { grid-template-columns: 1fr; }
+        .stats { grid-template-columns: repeat(2, 1fr); }
+        h1 { font-size: 36px; }
+      }
+      @media (max-width: 640px) {
+        .page { padding: 16px; }
+        .stats { grid-template-columns: 1fr; }
+        h1 { font-size: 30px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">March Madness Tracker</div>
+          <h1 id="page-title">Total Points</h1>
+          <div class="subtext">
+            Keep Excel as the scoring engine. Update winners in your workbook, save it, then upload the latest file here. This page reads the computed values from the <strong>Points</strong> sheet.
+          </div>
+        </div>
+        <div class="panel">
+          <label class="upload-label" for="file-input">Upload updated workbook</label>
+          <input id="file-input" type="file" accept=".xlsx,.xlsm,.xls" />
+          <div class="button-row">
+            <button id="publish-button" class="action-button" type="button">Publish for everyone</button>
+            <button id="load-latest-button" class="action-button secondary" type="button">Load published data</button>
+          </div>
+          <div class="file-meta" id="file-meta">Current source: Using demo data</div>
+          <div class="status-box" id="status-box" style="display:none"></div>
+          <div class="error" id="error-box" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Possible</div>
+          <div class="stat-value" id="total-possible">192</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Games Entered</div>
+          <div class="stat-value" id="games-entered">37</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Leader</div>
+          <div class="stat-value" id="leader-name">Isaac</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Players</div>
+          <div class="stat-value" id="player-count">9</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="panel">
+          <h2 class="section-title">Leaderboard</h2>
+          <p class="section-subtitle">Pulled directly from your workbook totals and round breakdowns.</p>
+          <div class="table-wrap">
+            <table id="leaderboard-table"></table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2 class="section-title">Points Total</h2>
+          <p class="section-subtitle">Live view from uploaded workbook.</p>
+          <div id="bars"></div>
+          <div class="note-box">
+            <div><strong>Workflow:</strong> update winners in Excel, save the file, then upload the latest workbook here.</div>
+            <div><strong>Important:</strong> this reads saved formula results from Excel, so save after recalculation.</div>
+            <div><strong>Publish:</strong> click Publish after upload so everyone on the shared site sees the same version.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const demoData = {
+        title: "Total Points",
+        totalPossiblePoints: 192,
+        gamesEntered: 37,
+        players: [
+          { name: "Daniel", points: 34 },
+          { name: "Jim", points: 33 },
+          { name: "Isaac", points: 36 },
+          { name: "Mom", points: 25 },
+          { name: "Luke", points: 29 },
+          { name: "Grace", points: 33 },
+          { name: "Joe", points: 32 },
+          { name: "Nick", points: 33 },
+          { name: "Ella", points: 34 }
+        ],
+        rounds: [
+          { label: "1st Round", values: [24, 27, 26, 21, 21, 25, 26, 25, 26] },
+          { label: "2nd Round", values: [5, 3, 5, 2, 4, 4, 3, 4, 4] },
+          { label: "Sweet 16", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
+          { label: "Elite 8", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
+          { label: "Final 4", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
+          { label: "Championship", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] }
+        ]
+      };
+
+      let currentData = demoData;
+
+      function normalizeName(value) {
+        return String(value ?? "").replace(/\s+/g, " ").trim();
+      }
+
+      function asNumber(value) {
+        const num = Number(value);
+        return Number.isFinite(num) ? num : 0;
+      }
+
+      function setStatus(message) {
+        const box = document.getElementById("status-box");
+        box.textContent = message;
+        box.style.display = message ? "block" : "none";
+      }
+
+      function setError(message) {
+        const box = document.getElementById("error-box");
+        box.textContent = message;
+        box.style.display = message ? "block" : "none";
+      }
+
+      function parsePointsSheet(workbook) {
+        const sheet = workbook.Sheets["Points"];
+        if (!sheet) {
+          throw new Error('Could not find a sheet named "Points".');
+        }
+
+        const read = (addr) => (sheet[addr] ? sheet[addr].v : undefined);
+
+        const headers = [];
+        let col = 2;
+        while (col <= 40) {
+          const cellAddress = XLSX.utils.encode_cell({ r: 2, c: col - 1 });
+          const value = normalizeName(read(cellAddress));
+          if (!value) break;
+          headers.push(value);
+          col += 1;
+        }
+
+        if (!headers.length) {
+          throw new Error('The "Points" sheet did not contain player names in row 3.');
+        }
+
+        const points = headers.map((_, index) => {
+          const cellAddress = XLSX.utils.encode_cell({ r: 3, c: index + 1 });
+          return asNumber(read(cellAddress));
+        });
+
+        const players = headers.map((name, index) => ({ name, points: points[index] }));
+
+        const rounds = [];
+        for (let row = 6; row <= 11; row += 1) {
+          const label = normalizeName(read(XLSX.utils.encode_cell({ r: row, c: 0 })));
+          if (!label) continue;
+          const values = headers.map((_, index) => {
+            const cellAddress = XLSX.utils.encode_cell({ r: row, c: index + 1 });
+            return asNumber(read(cellAddress));
+          });
+          rounds.push({ label, values });
+        }
+
+        const totalPossibleRaw = String(read("E2") ?? "");
+        const gamesEnteredRaw = read("I2");
+        const totalPossibleMatch = totalPossibleRaw.match(/(\d+)/);
+
+        return {
+          title: normalizeName(read("B2")) || "Total Points",
+          totalPossiblePoints: totalPossibleMatch ? Number(totalPossibleMatch[1]) : 0,
+          gamesEntered: asNumber(gamesEnteredRaw),
+          players,
+          rounds,
+          updatedAt: new Date().toISOString()
+        };
+      }
+
+      function render(data) {
+        currentData = data;
+        document.getElementById("page-title").textContent = data.title || "Total Points";
+        document.getElementById("total-possible").textContent = data.totalPossiblePoints;
+        document.getElementById("games-entered").textContent = data.gamesEntered;
+
+        const playersSorted = [...data.players].sort((a, b) => b.points - a.points);
+        document.getElementById("player-count").textContent = playersSorted.length;
+
+        const maxPoints = Math.max.apply(null, playersSorted.map((p) => p.points));
+        const minPoints = Math.min.apply(null, playersSorted.map((p) => p.points));
+        const leaders = playersSorted.filter((p) => p.points === maxPoints).map((p) => p.name).join(", ");
+        document.getElementById("leader-name").textContent = leaders;
+
+        const table = document.getElementById("leaderboard-table");
+        let thead = "<thead><tr><th>Player</th><th>Points</th>";
+        data.rounds.forEach((round) => {
+          thead += `<th>${round.label}</th>`;
+        });
+        thead += "</tr></thead>";
+
+        let tbody = "<tbody>";
+        playersSorted.forEach((player) => {
+          let pointsClass = "middle";
+          if (player.points === maxPoints) pointsClass = "leader";
+          else if (player.points === minPoints) pointsClass = "lowest";
+
+          const originalIndex = data.players.findIndex((p) => p.name === player.name);
+
+          tbody += `<tr><td>${player.name}</td><td class="points-cell ${pointsClass}">${player.points}</td>`;
+          data.rounds.forEach((round) => {
+            const value = round.values[originalIndex] ?? 0;
+            tbody += `<td>${value}</td>`;
+          });
+          tbody += "</tr>";
+        });
+        tbody += "</tbody>";
+        table.innerHTML = thead + tbody;
+
+        const bars = document.getElementById("bars");
+        bars.innerHTML = "";
+        playersSorted.forEach((player) => {
+          const row = document.createElement("div");
+          row.className = "bar-row";
+          const width = maxPoints > 0 ? Math.min((player.points / maxPoints) * 100, 100) : 0;
+          row.innerHTML = `
+            <div class="bar-head"><span>${player.name}</span><span>${player.points}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+          `;
+          bars.appendChild(row);
+        });
+      }
+
+      async function publishCurrentData() {
+        setError("");
+        setStatus("");
+        const button = document.getElementById("publish-button");
+        button.disabled = true;
+
+        try {
+          const response = await fetch("/.netlify/functions/publish-scores", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: currentData })
+          });
+
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || "Publish failed.");
+          }
+
+          setStatus(`Published successfully. Shared viewers will now see this version. Updated: ${result.updatedAt}`);
+        } catch (err) {
+          setError(err && err.message ? err.message : "Could not publish scores.");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function loadPublishedData() {
+        setError("");
+        setStatus("");
+        const button = document.getElementById("load-latest-button");
+        button.disabled = true;
+
+        try {
+          const response = await fetch("/.netlify/functions/publish-scores", { method: "GET" });
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Could not load published data.");
+          }
+          if (!result.data) {
+            throw new Error("No published data found yet.");
+          }
+
+          render(result.data);
+          localStorage.setItem("mm_data", JSON.stringify(result.data));
+          document.getElementById("file-meta").textContent = "Current source: published data";
+          setStatus(`Loaded published data. Updated: ${result.updatedAt || "unknown"}`);
+        } catch (err) {
+          setError(err && err.message ? err.message : "Could not load published scores.");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      document.getElementById("file-input").addEventListener("change", async function (event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        setError("");
+        setStatus("");
+
+        try {
+          const buffer = await file.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: "array", cellFormula: false });
+          const parsed = parsePointsSheet(workbook);
+          render(parsed);
+          localStorage.setItem("mm_data", JSON.stringify(parsed));
+          document.getElementById("file-meta").textContent = `Current source: ${file.name}`;
+          setStatus("Workbook loaded locally. Click Publish for everyone to see this update.");
+        } catch (err) {
+          setError(err && err.message ? err.message : "Could not read workbook.");
+        }
+      });
+
+      document.getElementById("publish-button").addEventListener("click", publishCurrentData);
+      document.getElementById("load-latest-button").addEventListener("click", loadPublishedData);
+
+      async function initializePage() {
+        try {
+          const response = await fetch("/.netlify/functions/publish-scores", { method: "GET" });
+          const result = await response.json();
+          if (response.ok && result.data) {
+            render(result.data);
+            localStorage.setItem("mm_data", JSON.stringify(result.data));
+            document.getElementById("file-meta").textContent = "Current source: published data";
+            setStatus(`Showing latest published data. Updated: ${result.updatedAt || "unknown"}`);
+            return;
+          }
+        } catch {
+        }
+
+        const saved = localStorage.getItem("mm_data");
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            render(parsed);
+            document.getElementById("file-meta").textContent = "Current source: saved data (local)";
+            return;
+          } catch {
+          }
+        }
+
+        render(demoData);
+      }
+
+      initializePage();
+    </script>
+  </body>
+</html>
