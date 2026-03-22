@@ -254,9 +254,7 @@
           <h2 class="section-title">Points Total</h2>
           <p class="section-subtitle">Live view from uploaded workbook.</p>
           <div id="bars"></div>
-          <div class="note-box">
-            <div><strong>Tip:</strong> on phones, the leaderboard is first so people can open the link and see standings immediately.</div>
-          </div>
+          
         </div>
       </div>
 
@@ -390,14 +388,16 @@
         thead += "</tr></thead>";
 
         let tbody = "<tbody>";
-        playersSorted.forEach((player, playerIndex) => {
+        playersSorted.forEach((player) => {
           let pointsClass = "middle";
           if (player.points === maxPoints) pointsClass = "leader";
           else if (player.points === minPoints) pointsClass = "lowest";
 
-          tbody += `<tr><td>${player.name}</td><td class=\"points-cell ${pointsClass}\">${player.points}</td>`;
+          const originalIndex = data.players.findIndex((p) => p.name === player.name);
+
+          tbody += `<tr><td>${player.name}</td><td class="points-cell ${pointsClass}">${player.points}</td>`;
           data.rounds.forEach((round) => {
-            const value = round.values[playerIndex] ?? 0;
+            const value = round.values[originalIndex] ?? 0;
             tbody += `<td>${value}</td>`;
           });
           tbody += "</tr>";
