@@ -7,21 +7,24 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <style>
       * { box-sizing: border-box; }
+
       body {
         margin: 0;
         font-family: Arial, Helvetica, sans-serif;
         background: #0a0a0a;
         color: #f5f5f5;
       }
+
       .page {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 24px;
+        padding: 20px;
       }
+
       .topbar {
-        display: block;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
       }
+
       .eyebrow {
         color: #a3a3a3;
         text-transform: uppercase;
@@ -29,27 +32,32 @@
         font-size: 12px;
         margin-bottom: 10px;
       }
+
       h1 {
         margin: 0 0 10px;
         font-size: 44px;
         line-height: 1;
       }
+
       .subtext {
         color: #bdbdbd;
         line-height: 1.5;
         max-width: 700px;
       }
+
       .panel {
         background: #171717;
         border: 1px solid #2a2a2a;
         border-radius: 20px;
         padding: 18px;
       }
+
       .upload-label {
         display: block;
         font-weight: bold;
         margin-bottom: 10px;
       }
+
       input[type="file"] {
         width: 100%;
         background: #0f0f0f;
@@ -58,11 +66,50 @@
         border-radius: 10px;
         padding: 10px;
       }
-      .file-meta, .error {
+
+      .button-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+
+      .action-button {
+        border: 1px solid #1d4ed8;
+        background: #2563eb;
+        color: #eff6ff;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .action-button.secondary {
+        background: #0f172a;
+        border-color: #334155;
+        color: #e2e8f0;
+      }
+
+      .action-button:disabled {
+        opacity: 0.65;
+        cursor: wait;
+      }
+
+      .file-meta, .error, .status-box {
         margin-top: 12px;
         font-size: 14px;
       }
+
       .file-meta { color: #bdbdbd; }
+
+      .status-box {
+        color: #dbeafe;
+        background: #0c4a6e;
+        border: 1px solid #075985;
+        padding: 10px 12px;
+        border-radius: 10px;
+      }
+
       .error {
         color: #fecaca;
         background: #450a0a;
@@ -70,53 +117,66 @@
         padding: 10px 12px;
         border-radius: 10px;
       }
+
       .stats {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 14px;
         margin-bottom: 20px;
       }
+
       .stat-card {
         background: #171717;
         border: 1px solid #2a2a2a;
         border-radius: 16px;
         padding: 16px;
       }
+
       .stat-label {
         color: #a3a3a3;
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
+
       .stat-value {
         font-size: 30px;
         font-weight: bold;
         margin-top: 8px;
       }
+
       .content {
         display: grid;
         grid-template-columns: 1.35fr 0.9fr;
         gap: 20px;
       }
+
       .bottom-panel {
         margin-top: 20px;
       }
+
       .section-title {
         font-size: 28px;
         margin: 0 0 6px;
       }
+
       .section-subtitle {
         color: #a3a3a3;
         margin: 0 0 18px;
       }
+
       .table-wrap {
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
+
       table {
         width: 100%;
+        min-width: 640px;
         border-collapse: separate;
         border-spacing: 0 8px;
       }
+
       th {
         color: #a3a3a3;
         font-size: 13px;
@@ -125,42 +185,57 @@
         padding: 8px 10px;
         white-space: nowrap;
       }
-      th:first-child, td:first-child { text-align: left; }
+
+      th:first-child, td:first-child {
+        text-align: left;
+      }
+
       td {
         background: #0f0f0f;
         padding: 12px 10px;
         text-align: right;
       }
+
       tr td:first-child {
         border-radius: 12px 0 0 12px;
         font-weight: bold;
       }
+
       tr td:last-child {
         border-radius: 0 12px 12px 0;
       }
+
       .points-cell.leader {
         background: rgba(16, 185, 129, 0.18);
         color: #86efac;
         font-weight: bold;
       }
+
       .points-cell.lowest {
         background: rgba(244, 63, 94, 0.18);
         color: #fda4af;
         font-weight: bold;
       }
+
       .points-cell.middle {
         background: rgba(245, 158, 11, 0.12);
         color: #fde68a;
         font-weight: bold;
       }
-      .bar-row { margin-bottom: 16px; }
+
+      .bar-row {
+        margin-bottom: 16px;
+      }
+
       .bar-head {
         display: flex;
         justify-content: space-between;
+        gap: 12px;
         margin-bottom: 6px;
         color: #e5e5e5;
         font-size: 14px;
       }
+
       .bar-track {
         width: 100%;
         height: 12px;
@@ -168,11 +243,13 @@
         background: #2a2a2a;
         overflow: hidden;
       }
+
       .bar-fill {
         height: 100%;
         border-radius: 999px;
         background: linear-gradient(90deg, #60a5fa, #22d3ee);
       }
+
       .note-box {
         margin-top: 24px;
         color: #d4d4d4;
@@ -182,31 +259,88 @@
         padding: 16px;
         line-height: 1.5;
       }
-      .note-box div + div { margin-top: 10px; }
+
+      .note-box div + div {
+        margin-top: 10px;
+      }
+
       @media (max-width: 980px) {
-        .content { grid-template-columns: 1fr; }
-        .stats { grid-template-columns: repeat(2, 1fr); }
-        h1 { font-size: 36px; }
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        h1 {
+          font-size: 36px;
+        }
       }
+
       @media (max-width: 640px) {
-        .page { padding: 14px; }
-        .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .content { gap: 14px; }
-        h1 { font-size: 28px; }
-        .panel { padding: 14px; border-radius: 16px; }
-        .stat-card { padding: 12px; border-radius: 14px; }
-        .stat-value { font-size: 24px; }
-        .section-title { font-size: 22px; }
-        .section-subtitle { margin-bottom: 12px; font-size: 14px; }
-        th, td { padding: 10px 8px; font-size: 13px; }
-        .button-row { flex-direction: column; }
-        .action-button { width: 100%; }
-        .bar-row { margin-bottom: 12px; }
-        .bar-head { font-size: 13px; }
-      }
-        .page { padding: 16px; }
-        .stats { grid-template-columns: 1fr; }
-        h1 { font-size: 30px; }
+        .page {
+          padding: 14px;
+        }
+
+        h1 {
+          font-size: 30px;
+        }
+
+        .subtext {
+          font-size: 14px;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+          margin-bottom: 16px;
+        }
+
+        .stat-card {
+          padding: 14px;
+          border-radius: 14px;
+        }
+
+        .stat-value {
+          font-size: 24px;
+        }
+
+        .panel {
+          padding: 14px;
+          border-radius: 16px;
+        }
+
+        .section-title {
+          font-size: 22px;
+        }
+
+        .section-subtitle {
+          font-size: 14px;
+          margin-bottom: 12px;
+        }
+
+        .bar-row {
+          margin-bottom: 12px;
+        }
+
+        .bar-head {
+          font-size: 13px;
+        }
+
+        .button-row {
+          flex-direction: column;
+        }
+
+        .action-button {
+          width: 100%;
+        }
+
+        .note-box {
+          margin-top: 16px;
+          padding: 14px;
+          font-size: 14px;
+        }
       }
     </style>
   </head>
@@ -217,7 +351,7 @@
           <div class="eyebrow">March Madness Tracker</div>
           <h1 id="page-title">Total Points</h1>
           <div class="subtext">
-            Follow the latest standings from the <strong>Points</strong> sheet, optimized for quick mobile check-ins.
+            Follow the latest standings from the <strong>Points</strong> sheet.
           </div>
         </div>
       </div>
@@ -254,7 +388,6 @@
           <h2 class="section-title">Points Total</h2>
           <p class="section-subtitle">Live view from uploaded workbook.</p>
           <div id="bars"></div>
-          
         </div>
       </div>
 
@@ -268,12 +401,12 @@
         <div class="file-meta" id="file-meta">Current source: Using demo data</div>
         <div class="status-box" id="status-box" style="display:none"></div>
         <div class="error" id="error-box" style="display:none"></div>
+
         <div class="note-box">
           <div><strong>Workflow:</strong> update winners in Excel, save the file, then upload the latest workbook here.</div>
           <div><strong>Important:</strong> this reads saved formula results from Excel, so save after recalculation.</div>
           <div><strong>Publish:</strong> click Publish after upload so everyone on the shared site sees the same version.</div>
         </div>
-      </div>
       </div>
     </div>
 
@@ -303,6 +436,8 @@
         ]
       };
 
+      let currentData = demoData;
+
       function normalizeName(value) {
         return String(value ?? "").replace(/\s+/g, " ").trim();
       }
@@ -310,6 +445,18 @@
       function asNumber(value) {
         const num = Number(value);
         return Number.isFinite(num) ? num : 0;
+      }
+
+      function setStatus(message) {
+        const box = document.getElementById("status-box");
+        box.textContent = message;
+        box.style.display = message ? "block" : "none";
+      }
+
+      function setError(message) {
+        const box = document.getElementById("error-box");
+        box.textContent = message;
+        box.style.display = message ? "block" : "none";
       }
 
       function parsePointsSheet(workbook) {
@@ -361,18 +508,18 @@
           totalPossiblePoints: totalPossibleMatch ? Number(totalPossibleMatch[1]) : 0,
           gamesEntered: asNumber(gamesEnteredRaw),
           players,
-          rounds
+          rounds,
+          updatedAt: new Date().toISOString()
         };
       }
 
       function render(data) {
+        currentData = data;
         document.getElementById("page-title").textContent = data.title || "Total Points";
         document.getElementById("total-possible").textContent = data.totalPossiblePoints;
         document.getElementById("games-entered").textContent = data.gamesEntered;
 
-        // Sort players high -> low
         const playersSorted = [...data.players].sort((a, b) => b.points - a.points);
-
         document.getElementById("player-count").textContent = playersSorted.length;
 
         const maxPoints = Math.max.apply(null, playersSorted.map((p) => p.points));
@@ -419,29 +566,83 @@
         });
       }
 
+      async function publishCurrentData() {
+        setError("");
+        setStatus("");
+        const button = document.getElementById("publish-button");
+        button.disabled = true;
+
+        try {
+          const response = await fetch("/.netlify/functions/publish-scores", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: currentData })
+          });
+
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || "Publish failed.");
+          }
+
+          setStatus(`Published successfully. Shared viewers will now see this version. Updated: ${result.updatedAt}`);
+        } catch (err) {
+          setError(err && err.message ? err.message : "Could not publish scores.");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function loadPublishedData() {
+        setError("");
+        setStatus("");
+        const button = document.getElementById("load-latest-button");
+        button.disabled = true;
+
+        try {
+          const response = await fetch("/.netlify/functions/publish-scores", { method: "GET" });
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Could not load published data.");
+          }
+          if (!result.data) {
+            throw new Error("No published data found yet.");
+          }
+
+          render(result.data);
+          localStorage.setItem("mm_data", JSON.stringify(result.data));
+          document.getElementById("file-meta").textContent = "Current source: published data";
+          setStatus(`Loaded published data. Updated: ${result.updatedAt || "unknown"}`);
+        } catch (err) {
+          setError(err && err.message ? err.message : "Could not load published scores.");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
       document.getElementById("file-input").addEventListener("change", async function (event) {
         const file = event.target.files && event.target.files[0];
         if (!file) return;
 
-        const errorBox = document.getElementById("error-box");
-        errorBox.style.display = "none";
-        errorBox.textContent = "";
+        setError("");
+        setStatus("");
 
         try {
           const buffer = await file.arrayBuffer();
           const workbook = XLSX.read(buffer, { type: "array", cellFormula: false });
           const parsed = parsePointsSheet(workbook);
           render(parsed);
-          // Save to localStorage
           localStorage.setItem("mm_data", JSON.stringify(parsed));
           document.getElementById("file-meta").textContent = `Current source: ${file.name}`;
+          setStatus("Workbook loaded locally. Click Publish for everyone to see this update.");
         } catch (err) {
-          errorBox.textContent = err && err.message ? err.message : "Could not read workbook.";
-          errorBox.style.display = "block";
+          setError(err && err.message ? err.message : "Could not read workbook.");
         }
       });
 
-      // Load from localStorage if available
+      document.getElementById("publish-button").addEventListener("click", publishCurrentData);
+      document.getElementById("load-latest-button").addEventListener("click", loadPublishedData);
+
       async function initializePage() {
         try {
           const response = await fetch("/.netlify/functions/publish-scores", { method: "GET" });
@@ -471,9 +672,6 @@
       }
 
       initializePage();
-      } else {
-        render(demoData);
-      }
     </script>
   </body>
 </html>
