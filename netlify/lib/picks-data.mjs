@@ -3,7 +3,7 @@ export const PLAYER_ORDER = [
   "Jim",
   "Isaac",
   "Mom",
-  "Luke",
+  "Isaac_2",
   "Grace",
   "Joe",
   "Nick",
@@ -319,7 +319,7 @@ export const PICKS = {
       "DUKE"
     ]
   },
-  "Luke": {
+  "Isaac_2": {
     "1st Round": [
       "DUKE",
       "OHIO ST.",
