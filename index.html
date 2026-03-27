@@ -385,7 +385,10 @@
           <h2 class="section-title">Leaderboard</h2>
           <p class="section-subtitle">Pulled directly from your published standings.</p>
           <div class="table-wrap">
-            <table id="leaderboard-table"></table>
+            <div id="loading-message" style="color:#a3a3a3; padding:10px 0;">
+			  Loading live data...
+			</div>
+			<table id="leaderboard-table"></table>
           </div>
         </div>
 
@@ -419,30 +422,13 @@
     </div>
 
     <script>
-      const demoData = {
-        title: "Total Points",
-        totalPossiblePoints: 192,
-        gamesEntered: 37,
-        players: [
-          { name: "Daniel", points: 34 },
-          { name: "Jim", points: 33 },
-          { name: "Isaac", points: 36 },
-          { name: "Mom", points: 25 },
-          { name: "Isaac_2", points: 29 },
-          { name: "Grace", points: 33 },
-          { name: "Joe", points: 32 },
-          { name: "Nick", points: 33 },
-          { name: "Ella", points: 34 }
-        ],
-        rounds: [
-          { label: "1st Round", values: [24, 27, 26, 21, 21, 25, 26, 25, 26] },
-          { label: "2nd Round", values: [5, 3, 5, 2, 4, 4, 3, 4, 4] },
-          { label: "Sweet 16", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-          { label: "Elite 8", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-          { label: "Final 4", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-          { label: "Championship", values: [0, 0, 0, 0, 0, 0, 0, 0, 0] }
-        ]
-      };
+	  const demoData = {
+	  title: "Loading live data...",
+	  totalPossiblePoints: "--",
+	  gamesEntered: "--",
+	  players: [],
+	  rounds: []
+	  };
 
       let currentData = demoData;
 
@@ -688,31 +674,50 @@
       document.getElementById("load-latest-button").addEventListener("click", loadPublishedData);
       document.getElementById("refresh-button").addEventListener("click", refreshLiveResults);
 
-      async function initializePage() {
-        try {
-          const { response, data: result } = await fetchJson("/.netlify/functions/publish-scores", { method: "GET" });
-          if (response.ok && result.data) {
-            render(result.data);
-            localStorage.setItem("mm_data", JSON.stringify(result.data));
-            document.getElementById("file-meta").textContent = "Current source: published data";
-            setStatus(`Showing latest published data. Updated: ${result.updatedAt || "unknown"}`);
-            return;
-          }
-        } catch {
+      const AUTO_REFRESH_MS = 10 * 60 * 1000;
+      let autoRefreshTimer = null;
+
+      function startAutoRefresh() {
+        if (autoRefreshTimer) {
+          clearInterval(autoRefreshTimer);
         }
 
+        autoRefreshTimer = setInterval(() => {
+          loadPublishedData();
+        }, AUTO_REFRESH_MS);
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          loadPublishedData();
+        }
+      });
+
+      async function initializePage() {
         const saved = localStorage.getItem("mm_data");
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
             render(parsed);
             document.getElementById("file-meta").textContent = "Current source: saved data (local)";
-            return;
+            setStatus("Checking for the latest live standings...");
+          } catch {
+          }
+        } else {
+          render(demoData);
+          setStatus("Checking for the latest live standings...");
+        }
+
+        try {
+          await refreshLiveResults();
+        } catch {
+          try {
+            await loadPublishedData();
           } catch {
           }
         }
 
-        render(demoData);
+        startAutoRefresh();
       }
 
       initializePage();
