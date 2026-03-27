@@ -657,6 +657,53 @@
         font-weight: bold;
       }
 
+
+      .teams-cards {
+        display: grid;
+        gap: 12px;
+      }
+
+      .team-card {
+        background: var(--panel-soft);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+      }
+
+      .team-card-name {
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .team-card-picks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .team-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        border: 1px solid var(--border);
+        background: #111827;
+        color: var(--muted-2);
+      }
+
+      .team-chip.hit {
+        color: #bbf7d0;
+        background: rgba(16, 185, 129, 0.15);
+        border-color: rgba(16, 185, 129, 0.25);
+      }
+
+      .team-chip.miss {
+        color: var(--muted);
+      }
+
+
       @media (max-width: 1120px) {
         .content,
         .secondary-grid,
@@ -673,18 +720,124 @@
         .page { padding: 14px; }
         h1 { font-size: 30px; }
         .subtext { font-size: 14px; }
-        .stats { gap: 10px; margin-bottom: 16px; }
-        .stat-card { padding: 14px; border-radius: 14px; }
-        .stat-value { font-size: 24px; }
+
+        .meta-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .meta-pill {
+          width: 100%;
+        }
+
+        .stats {
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .stat-card { padding: 16px; border-radius: 14px; }
+        .stat-value { font-size: 24px; line-height: 1.1; }
         .panel { padding: 14px; border-radius: 16px; }
         .section-title { font-size: 22px; }
         .section-subtitle { font-size: 14px; margin-bottom: 12px; }
         .bar-row { margin-bottom: 12px; }
         .bar-head { font-size: 13px; }
         .button-row { flex-direction: column; }
-        .action-button { width: 100%; }
+
+        .action-button,
+        .modal-close {
+          width: 100%;
+          min-height: 44px;
+        }
+
+        .bar-head,
+        .bar-labels,
+        .stack-head {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+        }
+
+        .table-wrap {
+          overflow-x: visible;
+        }
+
+        table {
+          min-width: 0;
+        }
+
+        th, td {
+          padding: 10px 8px;
+          font-size: 13px;
+        }
+
+        #leaderboard-table th:nth-child(4),
+        #leaderboard-table td:nth-child(4),
+        #leaderboard-table th:nth-child(6),
+        #leaderboard-table td:nth-child(6),
+        #leaderboard-table th:nth-child(7),
+        #leaderboard-table td:nth-child(7),
+        #leaderboard-table th:nth-child(8),
+        #leaderboard-table td:nth-child(8),
+        #leaderboard-table th:nth-child(9),
+        #leaderboard-table td:nth-child(9),
+        #leaderboard-table th:nth-child(10),
+        #leaderboard-table td:nth-child(10),
+        #leaderboard-table th:nth-child(11),
+        #leaderboard-table td:nth-child(11) {
+          display: none;
+        }
+
+        .teams-grid {
+          min-width: 0;
+        }
+
+        .teams-grid-row,
+        .teams-grid-header {
+          grid-template-columns: 140px repeat(var(--players-count, 1), minmax(44px, 1fr));
+          gap: 6px;
+        }
+
+        .teams-grid-cell {
+          padding: 8px 6px;
+          font-size: 12px;
+          min-height: 36px;
+        }
+
+        .legend {
+          gap: 8px 10px;
+          font-size: 11px;
+        }
+
+        .timeline-wrap {
+          min-height: 320px;
+        }
+
         .note-box { margin-top: 16px; padding: 14px; font-size: 14px; }
+
+        .modal-backdrop {
+          padding: 10px;
+        }
+
+        .modal {
+          width: 100%;
+          max-height: 92vh;
+          padding: 14px;
+          border-radius: 16px;
+        }
+
+        .modal-top {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
         .modal-summary { grid-template-columns: repeat(2, 1fr); }
+
+        .pick-item {
+          padding: 10px 12px;
+          font-size: 15px;
+        }
       }
     </style>
   </head>
@@ -1029,6 +1182,24 @@
         }
       }
 
+
+      function isMobileView() {
+        return window.matchMedia("(max-width: 640px)").matches;
+      }
+
+      function getRoundDisplayLabel(label) {
+        if (!isMobileView()) return label;
+        const mobileLabels = {
+          "1st Round": "R1",
+          "2nd Round": "R2",
+          "Sweet 16": "S16",
+          "Elite 8": "E8",
+          "Final 4": "F4",
+          "Championship": "Final"
+        };
+        return mobileLabels[label] || label;
+      }
+
       async function fetchJson(url, options = {}) {
         const response = await fetch(url, options);
         const text = await response.text();
@@ -1274,7 +1445,7 @@
 
         const palette = ["#60a5fa", "#22d3ee", "#34d399", "#fbbf24", "#fb7185", "#c084fc", "#f97316", "#a78bfa", "#2dd4bf"];
         const width = 760;
-        const height = 360;
+        const height = isMobileView() ? 320 : 360;
         const padding = 36;
 
         const cumulativeByPlayer = players.map((player) => {
@@ -1304,7 +1475,7 @@
           `;
         }).join("");
 
-        const xLabels = ["Start", ...rounds.map((r) => r.label)].map((label, index) => {
+        const xLabels = ["Start", ...rounds.map((r) => getRoundDisplayLabel(r.label))].map((label, index) => {
           const x = xFor(index);
           return `<text x="${x}" y="${height - 8}" font-size="11" text-anchor="middle" fill="#a3a3a3">${label}</text>`;
         }).join("");
@@ -1330,7 +1501,7 @@
         `).join("");
 
         wrap.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}" width="100%" height="360" role="img" aria-label="Round-by-round cumulative points">
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="${isMobileView() ? 320 : 360}" role="img" aria-label="Round-by-round cumulative points">
             ${yTicks}
             <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#404040" />
             <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#404040" />
@@ -1459,6 +1630,33 @@
           return;
         }
 
+        if (isMobileView()) {
+          const cards = aliveTeams.map((team) => {
+            const chips = enrichedPlayers.map((player) => {
+              const hasTeam = ROUND_DEFINITIONS.some((round) => {
+                const decidedCount = (tournamentState?.actualWinnersByRound?.[round.label] || []).length;
+                const roundStillOpen = decidedCount < round.games;
+                if (!roundStillOpen) return false;
+
+                return (PICKS[player.name]?.[round.label] || []).some(
+                  (pick) => normalizeTeamName(pick) === team
+                );
+              });
+              return `<span class="team-chip ${hasTeam ? 'hit' : 'miss'}">${player.name} ${hasTeam ? "✓" : "—"}</span>`;
+            }).join("");
+
+            return `
+              <div class="team-card">
+                <div class="team-card-name">${team}</div>
+                <div class="team-card-picks">${chips}</div>
+              </div>
+            `;
+          }).join("");
+
+          grid.innerHTML = `<div class="teams-cards">${cards}</div>`;
+          return;
+        }
+
         const header = `
           <div class="teams-grid-header">
             <div>Team</div>
@@ -1504,7 +1702,7 @@
 
         let thead = "<thead><tr><th>Player</th><th>Points</th><th>Max</th><th>Behind</th><th>Status</th>";
         (data.rounds || []).forEach((round) => {
-          thead += `<th>${round.label}</th>`;
+          thead += `<th>${getRoundDisplayLabel(round.label)}</th>`;
         });
         thead += "</tr></thead>";
 
@@ -1786,6 +1984,17 @@
       });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") closePlayerModal();
+      });
+
+
+      let resizeTimer = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if ((currentData.players || []).length) {
+            render(currentData);
+          }
+        }, 120);
       });
 
       function startAutoRefresh() {
