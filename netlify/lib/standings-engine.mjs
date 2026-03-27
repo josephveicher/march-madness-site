@@ -97,7 +97,7 @@ export function buildPayloadFromActualWinners(actualWinnersByRound) {
   }, 0);
 
   return {
-    title: "Total Points",
+    title: "Eicher's March Madness!",
     totalPossiblePoints,
     gamesEntered,
     players,
