@@ -412,9 +412,12 @@
       <div class="topbar">
         <div>
           <div class="eyebrow">March Madness Tracker</div>
-          <h1 id="page-title">Total Points</h1>
+          <h1 id="page-title">Eicher's March Madness</h1>
           <div class="subtext">
             Follow the latest standings from the <strong>Points</strong> sheet.
+          </div>
+          <div id="last-updated" style="margin-top: 10px; color: #a3a3a3; font-size: 14px;">
+            Last updated: Checking for live data...
           </div>
         </div>
       </div>
@@ -528,6 +531,25 @@
         box.style.display = message ? "block" : "none";
       }
 
+      function formatUpdatedAt(value) {
+        if (!value) return "Checking for live data...";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return parsed.toLocaleString([], {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        });
+      }
+
+      function setLastUpdated(value) {
+        const el = document.getElementById("last-updated");
+        if (!el) return;
+        el.textContent = `Last updated: ${formatUpdatedAt(value)}`;
+      }
+
       function setLoadingState(loading) {
         const leaderboardPanel = document.getElementById("leaderboard-panel");
         const barsLoading = document.getElementById("bars-loading");
@@ -616,6 +638,7 @@
       function render(data) {
         setLoadingState(false);
         currentData = data;
+        setLastUpdated(data.updatedAt);
         document.getElementById("page-title").textContent = data.title || "Total Points";
         document.getElementById("total-possible").textContent = data.totalPossiblePoints;
         document.getElementById("games-entered").textContent = data.gamesEntered;
@@ -817,6 +840,7 @@
           } catch {
             setLoadingState(true);
             document.getElementById("file-meta").textContent = "Current source: waiting for live data";
+            setLastUpdated(null);
             setStatus("Loading live data...");
           }
         }
@@ -824,6 +848,7 @@
         startAutoRefresh();
       }
 
+      setLastUpdated(null);
       initializePage();
     </script>
   </body>
