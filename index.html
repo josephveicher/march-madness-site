@@ -1650,11 +1650,14 @@
             throw new Error(result.error || "Live refresh failed.");
           }
 
-          await refreshAnalyticsState();
           render(result);
           localStorage.setItem("mm_data", JSON.stringify(result));
           document.getElementById("file-meta").textContent = "Current source: live sync";
           setStatus(`Live results synced. Updated: ${result.updatedAt || "unknown"}`);
+
+          refreshAnalyticsState().then(() => {
+            render(currentData);
+          }).catch(() => {});
         } catch (err) {
           setError(err && err.message ? err.message : "Could not sync live results.");
           throw err;
@@ -1679,11 +1682,14 @@
             throw new Error("No published data found yet.");
           }
 
-          await refreshAnalyticsState();
           render(result.data);
           localStorage.setItem("mm_data", JSON.stringify(result.data));
           document.getElementById("file-meta").textContent = "Current source: published data";
           setStatus(`Loaded published data. Updated: ${result.updatedAt || "unknown"}`);
+
+          refreshAnalyticsState().then(() => {
+            render(currentData);
+          }).catch(() => {});
         } catch (err) {
           setError(err && err.message ? err.message : "Could not load published scores.");
           throw err;
@@ -1750,10 +1756,13 @@
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
-            await refreshAnalyticsState();
             render(parsed);
             document.getElementById("file-meta").textContent = "Current source: saved data (local)";
             setStatus("Checking for the latest live standings...");
+
+            refreshAnalyticsState().then(() => {
+              render(currentData);
+            }).catch(() => {});
           } catch {
             setLoadingState(true);
           }
