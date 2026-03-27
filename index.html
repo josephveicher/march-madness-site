@@ -143,6 +143,7 @@
         font-size: 30px;
         font-weight: bold;
         margin-top: 8px;
+        min-height: 44px;
       }
 
       .content {
@@ -269,6 +270,63 @@
         font-weight: bold;
       }
 
+      .skeleton {
+        position: relative;
+        overflow: hidden;
+        background: #1f1f1f;
+      }
+
+      .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255,255,255,0.08),
+          transparent
+        );
+        animation: skeleton-shimmer 1.4s infinite;
+      }
+
+      @keyframes skeleton-shimmer {
+        100% {
+          transform: translateX(100%);
+        }
+      }
+
+      .skeleton-stat {
+        height: 44px;
+        border-radius: 12px;
+        margin-top: 8px;
+      }
+
+      .skeleton-row {
+        height: 48px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+      }
+
+      .skeleton-bar {
+        height: 12px;
+        border-radius: 999px;
+        margin: 14px 0;
+      }
+
+      #loading-shell,
+      #bars-loading {
+        display: none;
+      }
+
+      .is-loading .table-wrap {
+        display: none;
+      }
+
+      .is-loading #loading-shell {
+        display: block;
+      }
+
       @media (max-width: 980px) {
         .content {
           grid-template-columns: 1fr;
@@ -364,38 +422,53 @@
       <div class="stats">
         <div class="stat-card">
           <div class="stat-label">Total Possible</div>
-          <div class="stat-value" id="total-possible">192</div>
+          <div class="stat-value" id="total-possible"><div class="skeleton skeleton-stat"></div></div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Games Entered</div>
-          <div class="stat-value" id="games-entered">37</div>
+          <div class="stat-value" id="games-entered"><div class="skeleton skeleton-stat"></div></div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Leader</div>
-          <div class="stat-value" id="leader-name">Isaac</div>
+          <div class="stat-value" id="leader-name"><div class="skeleton skeleton-stat"></div></div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Players</div>
-          <div class="stat-value" id="player-count">9</div>
+          <div class="stat-value" id="player-count"><div class="skeleton skeleton-stat"></div></div>
         </div>
       </div>
 
       <div class="content">
-        <div class="panel">
+        <div class="panel is-loading" id="leaderboard-panel">
           <h2 class="section-title">Leaderboard</h2>
           <p class="section-subtitle">Pulled directly from your published standings.</p>
+
+          <div id="loading-shell">
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row"></div>
+          </div>
+
           <div class="table-wrap">
-            <div id="loading-message" style="color:#a3a3a3; padding:10px 0;">
-			  Loading live data...
-			</div>
-			<table id="leaderboard-table"></table>
+            <table id="leaderboard-table"></table>
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel" id="bars-panel">
           <h2 class="section-title">Points Total</h2>
           <p class="section-subtitle">Live view from published data.</p>
-          <div id="bars"></div>
+
+          <div id="bars-loading" style="display:block;">
+            <div class="skeleton skeleton-bar"></div>
+            <div class="skeleton skeleton-bar"></div>
+            <div class="skeleton skeleton-bar"></div>
+            <div class="skeleton skeleton-bar"></div>
+            <div class="skeleton skeleton-bar"></div>
+          </div>
+
+          <div id="bars" style="display:none;"></div>
         </div>
       </div>
 
@@ -409,7 +482,7 @@
             <button id="refresh-button" class="action-button secondary" type="button">Sync live results now</button>
             <button id="load-latest-button" class="action-button secondary" type="button">Load published data</button>
           </div>
-          <div class="file-meta" id="file-meta">Current source: Using demo data</div>
+          <div class="file-meta" id="file-meta">Current source: Loading live data</div>
           <div class="status-box" id="status-box" style="display:none"></div>
           <div class="error" id="error-box" style="display:none"></div>
 
@@ -422,15 +495,17 @@
     </div>
 
     <script>
-	  const demoData = {
-	  title: "Loading live data...",
-	  totalPossiblePoints: "--",
-	  gamesEntered: "--",
-	  players: [],
-	  rounds: []
-	  };
+      const demoData = {
+        title: "Loading live data...",
+        totalPossiblePoints: 0,
+        gamesEntered: 0,
+        players: [],
+        rounds: []
+      };
 
       let currentData = demoData;
+      const AUTO_REFRESH_MS = 10 * 60 * 1000;
+      let autoRefreshTimer = null;
 
       function normalizeName(value) {
         return String(value ?? "").replace(/\s+/g, " ").trim();
@@ -451,6 +526,24 @@
         const box = document.getElementById("error-box");
         box.textContent = message;
         box.style.display = message ? "block" : "none";
+      }
+
+      function setLoadingState(loading) {
+        const leaderboardPanel = document.getElementById("leaderboard-panel");
+        const barsLoading = document.getElementById("bars-loading");
+        const bars = document.getElementById("bars");
+
+        if (leaderboardPanel) {
+          leaderboardPanel.classList.toggle("is-loading", loading);
+        }
+
+        if (barsLoading) {
+          barsLoading.style.display = loading ? "block" : "none";
+        }
+
+        if (bars) {
+          bars.style.display = loading ? "none" : "block";
+        }
       }
 
       async function fetchJson(url, options = {}) {
@@ -521,24 +614,30 @@
       }
 
       function render(data) {
-		const loading = document.getElementById("loading-message");
-		if (loading) loading.style.display = "none";
+        setLoadingState(false);
         currentData = data;
         document.getElementById("page-title").textContent = data.title || "Total Points";
         document.getElementById("total-possible").textContent = data.totalPossiblePoints;
         document.getElementById("games-entered").textContent = data.gamesEntered;
 
-        const playersSorted = [...data.players].sort((a, b) => b.points - a.points);
+        const playersSorted = [...(data.players || [])].sort((a, b) => b.points - a.points);
         document.getElementById("player-count").textContent = playersSorted.length;
 
-        const maxPoints = Math.max.apply(null, playersSorted.map((p) => p.points));
-        const minPoints = Math.min.apply(null, playersSorted.map((p) => p.points));
+        if (!playersSorted.length) {
+          document.getElementById("leader-name").textContent = "—";
+          document.getElementById("leaderboard-table").innerHTML = "";
+          document.getElementById("bars").innerHTML = "";
+          return;
+        }
+
+        const maxPoints = Math.max(...playersSorted.map((p) => p.points));
+        const minPoints = Math.min(...playersSorted.map((p) => p.points));
         const leaders = playersSorted.filter((p) => p.points === maxPoints).map((p) => p.name).join(", ");
         document.getElementById("leader-name").textContent = leaders;
 
         const table = document.getElementById("leaderboard-table");
         let thead = "<thead><tr><th>Player</th><th>Points</th>";
-        data.rounds.forEach((round) => {
+        (data.rounds || []).forEach((round) => {
           thead += `<th>${round.label}</th>`;
         });
         thead += "</tr></thead>";
@@ -549,9 +648,9 @@
           if (player.points === maxPoints) pointsClass = "leader";
           else if (player.points === minPoints) pointsClass = "lowest";
 
-          const originalIndex = data.players.findIndex((p) => p.name === player.name);
+          const originalIndex = (data.players || []).findIndex((p) => p.name === player.name);
           tbody += `<tr><td>${player.name}</td><td class="points-cell ${pointsClass}">${player.points}</td>`;
-          data.rounds.forEach((round) => {
+          (data.rounds || []).forEach((round) => {
             const value = round.values[originalIndex] ?? 0;
             tbody += `<td>${value}</td>`;
           });
@@ -620,6 +719,7 @@
           setStatus(`Live results synced. Updated: ${result.updatedAt || "unknown"}`);
         } catch (err) {
           setError(err && err.message ? err.message : "Could not sync live results.");
+          throw err;
         } finally {
           button.disabled = false;
         }
@@ -647,6 +747,7 @@
           setStatus(`Loaded published data. Updated: ${result.updatedAt || "unknown"}`);
         } catch (err) {
           setError(err && err.message ? err.message : "Could not load published scores.");
+          throw err;
         } finally {
           button.disabled = false;
         }
@@ -676,26 +777,26 @@
       document.getElementById("load-latest-button").addEventListener("click", loadPublishedData);
       document.getElementById("refresh-button").addEventListener("click", refreshLiveResults);
 
-      const AUTO_REFRESH_MS = 10 * 60 * 1000;
-      let autoRefreshTimer = null;
-
       function startAutoRefresh() {
         if (autoRefreshTimer) {
           clearInterval(autoRefreshTimer);
         }
 
         autoRefreshTimer = setInterval(() => {
-          loadPublishedData();
+          loadPublishedData().catch(() => {});
         }, AUTO_REFRESH_MS);
       }
 
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
-          loadPublishedData();
+          loadPublishedData().catch(() => {});
         }
       });
 
       async function initializePage() {
+        setLoadingState(true);
+        setStatus("Checking for the latest live standings...");
+
         const saved = localStorage.getItem("mm_data");
         if (saved) {
           try {
@@ -704,10 +805,8 @@
             document.getElementById("file-meta").textContent = "Current source: saved data (local)";
             setStatus("Checking for the latest live standings...");
           } catch {
+            setLoadingState(true);
           }
-        } else {
-          render(demoData);
-          setStatus("Checking for the latest live standings...");
         }
 
         try {
@@ -716,6 +815,9 @@
           try {
             await loadPublishedData();
           } catch {
+            setLoadingState(true);
+            document.getElementById("file-meta").textContent = "Current source: waiting for live data";
+            setStatus("Loading live data...");
           }
         }
 
