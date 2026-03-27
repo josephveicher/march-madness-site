@@ -375,6 +375,19 @@
         gap: 8px;
       }
 
+      .legend-item.hoverable {
+        cursor: pointer;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .legend-item.hoverable.is-dimmed {
+        opacity: 0.45;
+      }
+
+      .legend-item.hoverable.is-active {
+        transform: translateY(-1px);
+      }
+
       .legend-swatch {
         width: 10px;
         height: 10px;
@@ -383,7 +396,27 @@
       }
 
       .timeline-wrap {
-        min-height: 280px;
+        min-height: 360px;
+      }
+
+      .timeline-wrap svg .series-line,
+      .timeline-wrap svg .series-dot {
+        transition: opacity 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+      }
+
+      .timeline-wrap svg.has-hover .series-line,
+      .timeline-wrap svg.has-hover .series-dot {
+        opacity: 0.22;
+      }
+
+      .timeline-wrap svg.has-hover .series-line.is-active,
+      .timeline-wrap svg.has-hover .series-dot.is-active {
+        opacity: 1;
+        filter: drop-shadow(0 0 6px rgba(255,255,255,0.18));
+      }
+
+      .timeline-wrap svg.has-hover .series-line.is-active {
+        stroke-width: 4;
       }
 
       .timeline-empty {
@@ -768,7 +801,6 @@
           <div class="note-box">
             <div><strong>Automatic mode:</strong> Netlify refreshes published standings from live NCAA results on a schedule.</div>
             <div><strong>Fallback:</strong> upload the workbook and publish manually if you ever need to override or recover quickly.</div>
-            <div><strong>Timeline note:</strong> the leader timeline in this version is stored locally in each browser. It starts filling in after you revisit or refresh.</div>
           </div>
         </div>
       </details>
@@ -916,6 +948,7 @@
 
       let currentData = demoData;
       let tournamentState = null;
+      let analyticsFetchInFlight = null;
       const AUTO_REFRESH_MS = 10 * 60 * 1000;
       let autoRefreshTimer = null;
 
@@ -1207,23 +1240,11 @@
         });
 
         const aliveTeams = [...(state?.activeTeams || new Set())]
-          .filter((team) => {
-            return players.some((player) => {
-              const playerPicks = PICKS[player.name] || {};
-
-              return ROUND_DEFINITIONS.some((round) => {
-                const decidedCount = (state?.actualWinnersByRound?.[round.label] || []).length;
-                const roundStillOpen = decidedCount < round.games;
-                if (!roundStillOpen) return false;
-
-                const picksForRound = Array.isArray(playerPicks[round.label]) ? playerPicks[round.label] : [];
-                return picksForRound.some((pick) => normalizeTeamName(pick) === team);
-              });
-            });
-          })
           .sort((a, b) => a.localeCompare(b));
+
         return { enriched, aliveTeams };
       }
+
       function renderRoundProgression(data) {
         const wrap = document.getElementById("round-progression");
         if (!wrap) return;
@@ -1245,26 +1266,26 @@
 
         const palette = ["#60a5fa", "#22d3ee", "#34d399", "#fbbf24", "#fb7185", "#c084fc", "#f97316", "#a78bfa", "#2dd4bf"];
         const width = 760;
-        const height = 280;
+        const height = 360;
         const padding = 36;
 
         const cumulativeByPlayer = players.map((player) => {
           let running = 0;
-          const points = rounds.map((round) => {
+          const points = [0, ...rounds.map((round) => {
             const roundData = (data.rounds || []).find((entry) => entry.label === round.label);
             const playerIndex = players.findIndex((entry) => entry.name === player.name);
             const correctCount = roundData && playerIndex >= 0 ? Number(roundData.values[playerIndex] || 0) : 0;
             const roundPoints = correctCount * round.points;
             running += roundPoints;
             return running;
-          });
+          })];
           return { name: player.name, values: points };
         });
 
         const allPoints = cumulativeByPlayer.flatMap((player) => player.values);
         const maxY = Math.max(1, ...allPoints);
 
-        const xFor = (index) => rounds.length === 1 ? padding : padding + (index / (rounds.length - 1)) * (width - padding * 2);
+        const xFor = (index) => padding + (index / rounds.length) * (width - padding * 2);
         const yFor = (value) => height - padding - (value / maxY) * (height - padding * 2);
 
         const yTicks = [0, maxY / 2, maxY].map((value) => {
@@ -1275,30 +1296,33 @@
           `;
         }).join("");
 
-        const xLabels = rounds.map((round, index) => {
+        const xLabels = ["Start", ...rounds.map((r) => r.label)].map((label, index) => {
           const x = xFor(index);
-          return `<text x="${x}" y="${height - 8}" font-size="11" text-anchor="middle" fill="#a3a3a3">${round.label}</text>`;
+          return `<text x="${x}" y="${height - 8}" font-size="11" text-anchor="middle" fill="#a3a3a3">${label}</text>`;
         }).join("");
 
         const dots = cumulativeByPlayer.map((player, idx) => {
           return player.values.map((value, index) => {
             const x = xFor(index);
             const y = yFor(value);
-            return `<circle cx="${x}" cy="${y}" r="3.5" fill="${palette[idx % palette.length]}"><title>${player.name}: ${rounds[index].label} (${value} pts)</title></circle>`;
+            const roundLabel = index === 0 ? "Start" : rounds[index - 1].label;
+            return `<circle class="series-dot" data-player="${player.name}" cx="${x}" cy="${y}" r="3.5" fill="${palette[idx % palette.length]}"><title>${player.name}: ${roundLabel} (${value} pts)</title></circle>`;
           }).join("");
         }).join("");
 
         const lines = cumulativeByPlayer.map((player, idx) => {
           const points = player.values.map((value, index) => `${xFor(index)},${yFor(value)}`).join(" ");
-          return `<polyline fill="none" stroke="${palette[idx % palette.length]}" stroke-width="2.5" points="${points}" />`;
+          return `<polyline class="series-line" data-player="${player.name}" fill="none" stroke="${palette[idx % palette.length]}" stroke-width="2.5" points="${points}" />`;
         }).join("");
 
         const legend = cumulativeByPlayer.map((player, idx) => `
-          <span class="legend-item"><span class="legend-swatch" style="background:${palette[idx % palette.length]}"></span>${player.name}</span>
+          <span class="legend-item hoverable" data-player="${player.name}">
+            <span class="legend-swatch" style="background:${palette[idx % palette.length]}"></span>${player.name}
+          </span>
         `).join("");
 
         wrap.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}" width="100%" height="280" role="img" aria-label="Round-by-round cumulative points">
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="360" role="img" aria-label="Round-by-round cumulative points">
             ${yTicks}
             <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#404040" />
             <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#404040" />
@@ -1308,6 +1332,45 @@
           </svg>
           <div class="legend">${legend}</div>
         `;
+
+        const svg = wrap.querySelector("svg");
+        const legendItems = [...wrap.querySelectorAll(".legend-item.hoverable")];
+        const lineEls = [...wrap.querySelectorAll(".series-line")];
+        const dotEls = [...wrap.querySelectorAll(".series-dot")];
+
+        function setHoverPlayer(playerName) {
+          if (!svg) return;
+
+          if (!playerName) {
+            svg.classList.remove("has-hover");
+            [...lineEls, ...dotEls].forEach((el) => el.classList.remove("is-active"));
+            legendItems.forEach((item) => {
+              item.classList.remove("is-active");
+              item.classList.remove("is-dimmed");
+            });
+            return;
+          }
+
+          svg.classList.add("has-hover");
+          [...lineEls, ...dotEls].forEach((el) => {
+            el.classList.toggle("is-active", el.dataset.player === playerName);
+          });
+          legendItems.forEach((item) => {
+            const active = item.dataset.player === playerName;
+            item.classList.toggle("is-active", active);
+            item.classList.toggle("is-dimmed", !active);
+          });
+        }
+
+        legendItems.forEach((item) => {
+          item.addEventListener("mouseenter", () => setHoverPlayer(item.dataset.player));
+          item.addEventListener("mouseleave", () => setHoverPlayer(null));
+        });
+
+        [...lineEls, ...dotEls].forEach((el) => {
+          el.addEventListener("mouseenter", () => setHoverPlayer(el.dataset.player));
+          el.addEventListener("mouseleave", () => setHoverPlayer(null));
+        });
       }
 
       function renderRoundBreakdown(enrichedPlayers) {
@@ -1574,12 +1637,33 @@
         renderTeamsGrid(sortedEnriched, aliveTeams);
       }
 
-      async function refreshAnalyticsState() {
-        try {
-          tournamentState = await fetchTournamentState();
-        } catch (err) {
-          console.warn("Could not fetch tournament analytics state.", err);
+      async function refreshAnalyticsState(force = false) {
+        if (analyticsFetchInFlight && !force) {
+          return analyticsFetchInFlight;
         }
+
+        analyticsFetchInFlight = (async () => {
+          try {
+            const state = await fetchTournamentState();
+            tournamentState = state;
+            return state;
+          } catch (err) {
+            console.warn("Could not fetch tournament analytics state.", err);
+            throw err;
+          } finally {
+            analyticsFetchInFlight = null;
+          }
+        })();
+
+        return analyticsFetchInFlight;
+      }
+
+      function refreshAnalyticsInBackground() {
+        refreshAnalyticsState().then(() => {
+          if ((currentData.players || []).length) {
+            render(currentData);
+          }
+        }).catch(() => {});
       }
 
       async function publishCurrentData() {
@@ -1622,11 +1706,11 @@
             throw new Error(result.error || "Live refresh failed.");
           }
 
-          await refreshAnalyticsState();
           render(result);
           localStorage.setItem("mm_data", JSON.stringify(result));
           document.getElementById("file-meta").textContent = "Current source: live sync";
           setStatus(`Live results synced. Updated: ${result.updatedAt || "unknown"}`);
+          refreshAnalyticsInBackground();
         } catch (err) {
           setError(err && err.message ? err.message : "Could not sync live results.");
           throw err;
@@ -1651,11 +1735,11 @@
             throw new Error("No published data found yet.");
           }
 
-          await refreshAnalyticsState();
           render(result.data);
           localStorage.setItem("mm_data", JSON.stringify(result.data));
           document.getElementById("file-meta").textContent = "Current source: published data";
           setStatus(`Loaded published data. Updated: ${result.updatedAt || "unknown"}`);
+          refreshAnalyticsInBackground();
         } catch (err) {
           setError(err && err.message ? err.message : "Could not load published scores.");
           throw err;
@@ -1675,11 +1759,11 @@
           const buffer = await file.arrayBuffer();
           const workbook = XLSX.read(buffer, { type: "array", cellFormula: false });
           const parsed = parsePointsSheet(workbook);
-          await refreshAnalyticsState();
           render(parsed);
           localStorage.setItem("mm_data", JSON.stringify(parsed));
           document.getElementById("file-meta").textContent = `Current source: ${file.name}`;
           setStatus("Workbook loaded locally. Click Publish uploaded workbook to override the shared standings.");
+          refreshAnalyticsInBackground();
         } catch (err) {
           setError(err && err.message ? err.message : "Could not read workbook.");
         }
@@ -1722,10 +1806,10 @@
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
-            await refreshAnalyticsState();
             render(parsed);
             document.getElementById("file-meta").textContent = "Current source: saved data (local)";
             setStatus("Checking for the latest live standings...");
+            refreshAnalyticsInBackground();
           } catch {
             setLoadingState(true);
           }
