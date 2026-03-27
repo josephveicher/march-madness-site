@@ -737,9 +737,9 @@
         </div>
 
         <div class="panel">
-          <h2 class="section-title">Leader Timeline</h2>
-          <p class="section-subtitle">Local browser history of score snapshots from prior refreshes.</p>
-          <div class="timeline-wrap" id="timeline-wrap"></div>
+          <h2 class="section-title">Round-by-Round Progression</h2>
+          <p class="section-subtitle">Cumulative points after each tournament round.</p>
+          <div id="round-progression" class="timeline-wrap"></div>
         </div>
       </div>
 
@@ -1206,81 +1206,66 @@
           };
         });
 
-        const aliveTeams = [...(state?.activeTeams || new Set())].sort((a, b) => a.localeCompare(b));
+        const aliveTeams = [...(state?.activeTeams || new Set())]
+          .filter((team) => {
+            return players.some((player) => {
+              const playerPicks = PICKS[player.name] || {};
+
+              return ROUND_DEFINITIONS.some((round) => {
+                const decidedCount = (state?.actualWinnersByRound?.[round.label] || []).length;
+                const roundStillOpen = decidedCount < round.games;
+                if (!roundStillOpen) return false;
+
+                const picksForRound = Array.isArray(playerPicks[round.label]) ? playerPicks[round.label] : [];
+                return picksForRound.some((pick) => normalizeTeamName(pick) === team);
+              });
+            });
+          })
+          .sort((a, b) => a.localeCompare(b));
         return { enriched, aliveTeams };
       }
+      function renderRoundProgression(data) {
+        const wrap = document.getElementById("round-progression");
+        if (!wrap) return;
 
-      function saveHistorySnapshot(data) {
-        if (!data?.updatedAt || !(data.players || []).length) return;
-
-        const key = "mm_history_v1";
-        let history = [];
-        try {
-          history = JSON.parse(localStorage.getItem(key) || "[]");
-        } catch {
-          history = [];
-        }
-
-        const snapshot = {
-          updatedAt: data.updatedAt,
-          players: (data.players || []).map((player) => ({
-            name: player.name,
-            points: player.points
-          }))
-        };
-
-        const alreadyExists = history.some((item) => item.updatedAt === snapshot.updatedAt);
-        if (!alreadyExists) {
-          history.push(snapshot);
-          history.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
-          history = history.slice(-30);
-          localStorage.setItem(key, JSON.stringify(history));
-        }
-      }
-
-      function getHistorySnapshots() {
-        try {
-          return JSON.parse(localStorage.getItem("mm_history_v1") || "[]");
-        } catch {
-          return [];
-        }
-      }
-
-      function renderTimeline(data) {
-        const wrap = document.getElementById("timeline-wrap");
-        const history = getHistorySnapshots();
-
-        if (!history.length || history.length < 2 || !(data.players || []).length) {
-          wrap.innerHTML = `<div class="timeline-empty">This chart builds up in each browser over time. After a few refreshes or visits, you'll see score lines here.</div>`;
+        const players = [...(data.players || [])];
+        if (!players.length) {
+          wrap.innerHTML = `<div class="timeline-empty">Round progression will appear once scores are available.</div>`;
           return;
         }
 
-        const playerNames = (data.players || []).map((player) => player.name);
+        const rounds = ROUND_DEFINITIONS.filter((round) =>
+          (data.rounds || []).some((entry) => entry.label === round.label)
+        );
+
+        if (!rounds.length) {
+          wrap.innerHTML = `<div class="timeline-empty">No round data is available yet.</div>`;
+          return;
+        }
+
         const palette = ["#60a5fa", "#22d3ee", "#34d399", "#fbbf24", "#fb7185", "#c084fc", "#f97316", "#a78bfa", "#2dd4bf"];
         const width = 760;
         const height = 280;
         const padding = 36;
 
-        const allPoints = history.flatMap((snapshot) => snapshot.players.map((p) => p.points));
+        const cumulativeByPlayer = players.map((player) => {
+          let running = 0;
+          const points = rounds.map((round) => {
+            const roundData = (data.rounds || []).find((entry) => entry.label === round.label);
+            const playerIndex = players.findIndex((entry) => entry.name === player.name);
+            const correctCount = roundData && playerIndex >= 0 ? Number(roundData.values[playerIndex] || 0) : 0;
+            const roundPoints = correctCount * round.points;
+            running += roundPoints;
+            return running;
+          });
+          return { name: player.name, values: points };
+        });
+
+        const allPoints = cumulativeByPlayer.flatMap((player) => player.values);
         const maxY = Math.max(1, ...allPoints);
 
-        const xFor = (index) => history.length === 1 ? padding : padding + (index / (history.length - 1)) * (width - padding * 2);
+        const xFor = (index) => rounds.length === 1 ? padding : padding + (index / (rounds.length - 1)) * (width - padding * 2);
         const yFor = (value) => height - padding - (value / maxY) * (height - padding * 2);
-
-        const lines = playerNames.map((name, idx) => {
-          const points = history.map((snapshot, index) => {
-            const player = snapshot.players.find((entry) => entry.name === name);
-            const value = player ? player.points : 0;
-            return `${xFor(index)},${yFor(value)}`;
-          }).join(" ");
-          return `<polyline fill="none" stroke="${palette[idx % palette.length]}" stroke-width="2.5" points="${points}" />`;
-        }).join("");
-
-        const xLabels = history.map((snapshot, index) => {
-          const x = xFor(index);
-          const label = new Date(snapshot.updatedAt).toLocaleDateString([], { month: "short", day: "numeric" });
-          return `<text x="${x}" y="${height - 8}" font-size="11" text-anchor="middle" fill="#a3a3a3">${label}</text>`;
-        }).join("");
 
         const yTicks = [0, maxY / 2, maxY].map((value) => {
           const y = yFor(value);
@@ -1290,16 +1275,35 @@
           `;
         }).join("");
 
-        const legend = playerNames.map((name, idx) => `
-          <span class="legend-item"><span class="legend-swatch" style="background:${palette[idx % palette.length]}"></span>${name}</span>
+        const xLabels = rounds.map((round, index) => {
+          const x = xFor(index);
+          return `<text x="${x}" y="${height - 8}" font-size="11" text-anchor="middle" fill="#a3a3a3">${round.label}</text>`;
+        }).join("");
+
+        const dots = cumulativeByPlayer.map((player, idx) => {
+          return player.values.map((value, index) => {
+            const x = xFor(index);
+            const y = yFor(value);
+            return `<circle cx="${x}" cy="${y}" r="3.5" fill="${palette[idx % palette.length]}"><title>${player.name}: ${rounds[index].label} (${value} pts)</title></circle>`;
+          }).join("");
+        }).join("");
+
+        const lines = cumulativeByPlayer.map((player, idx) => {
+          const points = player.values.map((value, index) => `${xFor(index)},${yFor(value)}`).join(" ");
+          return `<polyline fill="none" stroke="${palette[idx % palette.length]}" stroke-width="2.5" points="${points}" />`;
+        }).join("");
+
+        const legend = cumulativeByPlayer.map((player, idx) => `
+          <span class="legend-item"><span class="legend-swatch" style="background:${palette[idx % palette.length]}"></span>${player.name}</span>
         `).join("");
 
         wrap.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}" width="100%" height="280" role="img" aria-label="Leader timeline">
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="280" role="img" aria-label="Round-by-round cumulative points">
             ${yTicks}
             <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#404040" />
             <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#404040" />
             ${lines}
+            ${dots}
             ${xLabels}
           </svg>
           <div class="legend">${legend}</div>
@@ -1393,9 +1397,15 @@
 
         const rows = aliveTeams.map((team) => {
           const cells = enrichedPlayers.map((player) => {
-            const hasTeam = ROUND_DEFINITIONS.some((round) =>
-              (PICKS[player.name]?.[round.label] || []).some((pick) => normalizeTeamName(pick) === team)
-            );
+            const hasTeam = ROUND_DEFINITIONS.some((round) => {
+              const decidedCount = (tournamentState?.actualWinnersByRound?.[round.label] || []).length;
+              const roundStillOpen = decidedCount < round.games;
+              if (!roundStillOpen) return false;
+
+              return (PICKS[player.name]?.[round.label] || []).some(
+                (pick) => normalizeTeamName(pick) === team
+              );
+            });
             return `<div class="teams-grid-cell ${hasTeam ? 'hit' : 'miss'}">${hasTeam ? "✓" : "—"}</div>`;
           }).join("");
 
@@ -1525,7 +1535,6 @@
         setLoadingState(false);
         currentData = data;
         setLastUpdated(data.updatedAt);
-        saveHistorySnapshot(data);
 
         document.getElementById("page-title").textContent = data.title || "Total Points";
         document.getElementById("total-possible").textContent = data.totalPossiblePoints;
@@ -1541,7 +1550,7 @@
           document.getElementById("bars").innerHTML = "";
           document.getElementById("round-breakdown").innerHTML = "";
           document.getElementById("teams-grid").innerHTML = "";
-          renderTimeline(data);
+          renderRoundProgression(data);
           return;
         }
 
@@ -1561,7 +1570,7 @@
         renderLeaderboard(data, sortedEnriched);
         renderProjectedBars(sortedEnriched);
         renderRoundBreakdown(sortedEnriched);
-        renderTimeline(data);
+        renderRoundProgression(data);
         renderTeamsGrid(sortedEnriched, aliveTeams);
       }
 
