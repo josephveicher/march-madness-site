@@ -958,7 +958,9 @@
 
       function normalizeTeamName(value) {
         if (!value) return "";
-        let normalized = String(value).toUpperCase().trim();
+        const raw = String(value).trim();
+        if (!raw || /^TBD$/i.test(raw)) return "";
+        let normalized = raw.toUpperCase();
         normalized = normalized.replace(/&/g, " AND ");
         normalized = normalized.replace(/["'.]/g, "");
         normalized = normalized.replace(/[()]/g, " ");
@@ -1086,7 +1088,8 @@
                 team?.team?.shortDisplayName ||
                 team?.team?.displayName ||
                 null;
-              if (name) activeTeams.add(normalizeTeamName(name));
+              const normalizedName = normalizeTeamName(name);
+              if (normalizedName) activeTeams.add(normalizedName);
             });
 
             if (competition?.status?.type?.completed !== true) continue;
@@ -1111,13 +1114,18 @@
               null;
 
             if (winnerName) {
-              actualWinnersByRound[roundLabel].push(winnerName);
+              const normalizedWinner = normalizeTeamName(winnerName);
+              if (normalizedWinner) {
+                actualWinnersByRound[roundLabel].push(winnerName);
+              }
             }
 
             if (loserName) {
               const normalizedLoser = normalizeTeamName(loserName);
-              eliminatedTeams.add(normalizedLoser);
-              activeTeams.delete(normalizedLoser);
+              if (normalizedLoser) {
+                eliminatedTeams.add(normalizedLoser);
+                activeTeams.delete(normalizedLoser);
+              }
             }
           }
         }));
