@@ -521,6 +521,8 @@
       }
 
       function render(data) {
+		const loading = document.getElementById("loading-message");
+		if (loading) loading.style.display = "none";
         currentData = data;
         document.getElementById("page-title").textContent = data.title || "Total Points";
         document.getElementById("total-possible").textContent = data.totalPossiblePoints;
